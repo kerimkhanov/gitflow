@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"gitflow/config"
 	"gitflow/internal/email/models"
-	"gitflow/internal/email/repository"
 	"github.com/gocelery/gocelery"
 	"github.com/gomodule/redigo/redis"
 	"html/template"
@@ -16,14 +15,8 @@ import (
 )
 
 type EmailUseCase struct {
-	repository *repository.EmailRepository
 }
 
-func NewEmailUseCase(repository *repository.EmailRepository) *EmailUseCase {
-	return &EmailUseCase{
-		repository: repository,
-	}
-}
 func (e *EmailUseCase) InitTask(input []models.UserMail, config config.Config) {
 	//rep
 	redisPool := &redis.Pool{

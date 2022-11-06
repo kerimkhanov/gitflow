@@ -3,6 +3,7 @@ package main
 import (
 	"gitflow/config"
 	"gitflow/server"
+	"github.com/sirupsen/logrus"
 	"log"
 )
 
@@ -11,8 +12,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("error")
 	}
-	a := server.NewApp(config)
+	logrus := logrus.Logger{}
+	a := server.NewApp(config, logrus)
 
-	if err = a.Run(config.Port); err != nil {
+	if err = a.Run(); err != nil {
+		log.Fatal(err)
 	}
 }

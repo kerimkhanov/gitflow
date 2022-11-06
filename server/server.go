@@ -2,12 +2,8 @@ package server
 
 import (
 	"gitflow/config"
-	"gitflow/internal/email"
 	"gitflow/internal/email/delivery"
-	"gitflow/internal/email/repository"
-	"gitflow/internal/email/usecase"
-	"github.com/gocelery/gocelery"
-	"github.com/gomodule/redigo/redis"
+	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/sirupsen/logrus"
 	"log"
@@ -15,49 +11,30 @@ import (
 )
 
 type Server struct {
-	httpServer  http.Server
-	Logger      *logrus.Logger
-	AuthUseCase email.UseCase
+	router *gin.Engine
+	logger *logrus.Logger
+	config *config.Config
+	//AuthUseCase email.UseCase
 }
 
-func NewApp(config config.Config) *Server {
-	_, err := initRedis()
-	if err != nil {
-		log.Fatalf("Redis Db initialization error %v", err)
+func NewApp(cfg config.Config, log logrus.Logger) *Server {
+	return &Server{
+		config: &cfg,
+		logger: &log,
+		router: gin.Default(),
 	}
-
-	repository := repository.NewEmailRepository()
-	usecase := usecase.NewEmailUseCase(repository)
-	handler := delivery.NewHandler(usecase)
-	handler.InitRoutes()
-	return nil
 }
 
-func initRedis() (*gocelery.CeleryClient, error) {
-	redisPool := &redis.Pool{
-		Dial: func() (redis.Conn, error) {
-			c, err := redis.DialURL("redis://")
-			if err != nil {
-				return nil, err
-			}
-			return c, err
-		},
+func (s *Server) Run() error {
+	s.initEndpoints()
+	srv := http.Server{
+		Addr:    ":" + s.config.Port,
+		Handler: s.router,
 	}
-
-	cli, _ := gocelery.NewCeleryClient(
-		gocelery.NewRedisBroker(redisPool),
-		&gocelery.RedisCeleryBackend{Pool: redisPool},
-		1,
-	)
-	return cli, nil
+	log.Printf("Server started: http://localhost:%s", s.config.Port)
+	return srv.ListenAndServe()
 }
 
-func (s *Server) Run(addr string) error {
-	router := http.NewServeMux()
-	s.httpServer = http.Server{
-		Addr:    addr,
-		Handler: router,
-	}
-	log.Printf("Server started: http://localhost%s", addr)
-	return s.httpServer.ListenAndServe()
+func (s *Server) initEndpoints() {
+	delivery.InitEmailRoutes(s.router)
 }
