@@ -3,21 +3,21 @@ package usecase
 import (
 	"bytes"
 	"fmt"
-	"gitflow/config"
 	"gitflow/internal/email/models"
-	"github.com/gocelery/gocelery"
-	"github.com/gomodule/redigo/redis"
 	"html/template"
 	"log"
 	"net/smtp"
-	"reflect"
+	"strings"
 	"time"
+
+	"github.com/gocelery/gocelery"
+	"github.com/gomodule/redigo/redis"
 )
 
 type EmailUseCase struct {
 }
 
-func (e *EmailUseCase) InitTask(input []models.UserMail, config config.Config) {
+func (e *EmailUseCase) StartWorker() {
 	//rep
 	redisPool := &redis.Pool{
 		Dial: func() (redis.Conn, error) {
@@ -38,28 +38,33 @@ func (e *EmailUseCase) InitTask(input []models.UserMail, config config.Config) {
 		log.Fatal(err)
 	}
 
-	sendMail := func(from string, password string, host string, port string, email []string, body string) error {
+	sendMail := func(from string, password string, host string, port string, email string, body string) string {
 		auth := smtp.PlainAuth("", from, password, host)
 		if err != nil {
-			return fmt.Errorf("send mail: %v\n", err)
+			fmt.Println(err)
+			return "error"
 		}
-
-		err = smtp.SendMail(host+":"+port, auth, from, email, []byte(body))
+		fmt.Println(email)
+		data := strings.Split(email, ",")
+		for i := 0; i < len(data); i++ {
+			fmt.Println(data[i], "!")
+		}
+		err = smtp.SendMail(host+":"+port, auth, from, data, []byte(body))
 
 		if err != nil {
-			return fmt.Errorf("send mail: %v\n", err)
+			fmt.Println(err)
+			return "error"
 		}
-		return nil
+		return "SUCCESS"
 	}
 
 	cli.Register("worker.mailing", sendMail)
 
 	cli.StartWorker()
-	time.Sleep(100 * time.Second)
-	cli.StopWorker()
-
+	cli.WaitForStopWorker()
 }
-func (e *EmailUseCase) DoTasks(input models.UserMail, tmpl *template.Template) error {
+
+func (e *EmailUseCase) StartClient(input models.UserMail, tmpl *template.Template) (string, error) {
 	redisPool := &redis.Pool{
 		Dial: func() (redis.Conn, error) {
 			c, err := redis.DialURL("redis://")
@@ -69,39 +74,38 @@ func (e *EmailUseCase) DoTasks(input models.UserMail, tmpl *template.Template) e
 			return c, err
 		},
 	}
-	//rep
-	cli, err1 := gocelery.NewCeleryClient(
+
+	cli, err := gocelery.NewCeleryClient(
 		gocelery.NewRedisBroker(redisPool),
 		&gocelery.RedisCeleryBackend{Pool: redisPool},
 		10,
 	)
-	if err1 != nil {
-		log.Fatal(err1)
+
+	if err != nil {
+		return "", err
 	}
 	taskName := "worker.mailing"
-	//  func(from []string, email string, body []byte) error {
 
 	template, err := tmpl.ParseFiles("client/template.html")
 	if err != nil {
-		fmt.Println(err)
-		return err
+		return "", err
 	}
 
 	var body bytes.Buffer
 	mimeHeaders := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
-	body.Write([]byte(fmt.Sprintf("Subject: %s \n%s\n\n", input, mimeHeaders)))
+	body.Write([]byte(fmt.Sprintf("Subject: %s \n%s\n\n", input.Title, mimeHeaders)))
 
-	err = template.Execute(&body, input)
+	_ = template.Execute(&body, input)
+	data := strings.Join(input.Emails, ",")
 
-	var asyncResult, err2 = cli.Delay(taskName, "english2two@gmail.com", "yobruuhyjlcfdmua", "smtp.gmail.com", "587", input.Emails, body.String())
-	if err2 != nil {
-		panic(err2)
+	asyncResult, err := cli.Delay(taskName, "english2two@gmail.com", "ztbmxouvonzpicvw", "smtp.gmail.com", "587", data, body.String())
+	if err != nil {
+		return "", err
 	}
 	res, err := asyncResult.Get(10 * time.Second)
 	if err != nil {
-		panic(err)
+		return "", err
 	}
-	fmt.Println(res)
-	log.Printf("result: %+v of type %+v", res, reflect.TypeOf(res))
-	return nil
+
+	return res.(string), nil
 }

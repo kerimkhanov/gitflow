@@ -3,10 +3,5 @@
   "hash_salt": "hash_salt",
   "signing_key": "signing_key",
   "tokkent_ttl": 86400,
-  "redisPort": "localhost:6379",
-  "sendler": "english2two@gmail.com",
-  "password": "yobruuhyjlcfdmua",
-  "host": "yobruuhyjlcfdmua",
-  "port_for_sending" : "587"
-
+  "redisPort": "localhost:6379"
 }

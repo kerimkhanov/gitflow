@@ -1,12 +1,16 @@
 package delivery
 
 import (
+	"encoding/json"
 	"fmt"
 	"gitflow/internal/email/models"
 	"gitflow/internal/email/usecase"
-	"github.com/gin-gonic/gin"
 	"html/template"
 	"log"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -30,16 +34,28 @@ func InitEmailRoutes(router *gin.Engine) {
 }
 
 func (h *Handler) sending(c *gin.Context) {
-	fmt.Println("here")
 	var input models.UserMail
 	if err := c.BindJSON(&input); err != nil {
 		log.Println(err)
 		return
 	}
-	fmt.Println("here2")
-	fmt.Println(input.Emails)
-	if err := h.usecase.DoTasks(input, h.tmpl); err != nil {
+	go h.usecase.StartWorker()
+	time.Sleep(100 * time.Millisecond)
+	res, err := h.usecase.StartClient(input, h.tmpl)
+	if err != nil {
 		log.Println(err)
 		return
 	}
+	daa, err := json.Marshal(res)
+	if err != nil {
+		return
+	}
+	var v interface{}
+	if err = json.Unmarshal(daa, &v); err != nil {
+		return
+	}
+	fmt.Println(string(daa), v)
+
+	c.JSON(http.StatusOK, res)
+
 }
