@@ -1,0 +1,12 @@
+{
+  "port": "8080",
+  "hashSalt": "hash_salt",
+  "signingKey": "signing_key",
+  "tokkentTtl": 86400,
+  "redisPort": "localhost:6379",
+  "sendler": "english2two@gmail.com",
+  "password": "yobruuhyjlcfdmua",
+  "hostForSending": "yobruuhyjlcfdmua",
+  "portForSending" : "587"
+
+}
