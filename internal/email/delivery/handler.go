@@ -11,6 +11,7 @@ import (
 type Handler struct {
 	usecase *usecase.EmailUseCase
 	tmpl    *template.Template
+	config  *template.Template
 }
 
 func NewHandler(usecase *usecase.EmailUseCase) *Handler {
@@ -32,7 +33,7 @@ func (h *Handler) sending(c *gin.Context) {
 		log.Println(err)
 		return
 	}
-	if err := h.usecase.DoTasks(input, h.config, h.tmpl); err != nil {
+	if err := h.usecase.DoTasks(input, h.tmpl); err != nil {
 		log.Println(err)
 		return
 	}

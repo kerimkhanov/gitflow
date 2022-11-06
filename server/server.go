@@ -21,7 +21,7 @@ type Server struct {
 }
 
 func NewApp(config config.Config) *Server {
-	celery, err := initRedis()
+	_, err := initRedis()
 	if err != nil {
 		log.Fatalf("Redis Db initialization error %v", err)
 	}

@@ -66,15 +66,32 @@ func (e *EmailUseCase) InitTask(input []models.UserMail, config config.Config) {
 	cli.StopWorker()
 
 }
-func (e *EmailUseCase) DoTasks(input models.UserMail, config config.Config, tmpl *template.Template) {
-
+func (e *EmailUseCase) DoTasks(input models.UserMail, tmpl *template.Template) error {
+	redisPool := &redis.Pool{
+		Dial: func() (redis.Conn, error) {
+			c, err := redis.DialURL("redis://")
+			if err != nil {
+				return nil, err
+			}
+			return c, err
+		},
+	}
+	//rep
+	cli, err1 := gocelery.NewCeleryClient(
+		gocelery.NewRedisBroker(redisPool),
+		&gocelery.RedisCeleryBackend{Pool: redisPool},
+		10,
+	)
+	if err1 != nil {
+		log.Fatal(err1)
+	}
 	taskName := "worker.mailing"
 	//  func(from []string, email string, body []byte) error {
 
 	template, err := tmpl.ParseFiles("client/template.html")
 	if err != nil {
 		fmt.Println(err)
-		return
+		return err
 	}
 
 	var body bytes.Buffer
@@ -83,9 +100,9 @@ func (e *EmailUseCase) DoTasks(input models.UserMail, config config.Config, tmpl
 
 	err = template.Execute(&body, input)
 
-	var asyncResult, err = cli.Delay(taskName, config.Sendler, config.Password, config.HostForSending, config.PortForSending, input.Emails, body.String())
-	if err != nil {
-		panic(err)
+	var asyncResult, err2 = cli.Delay(taskName, "english2two@gmail.com", "yobruuhyjlcfdmua", "smtp.gmail.com", "587", input.Emails, body.String())
+	if err2 != nil {
+		panic(err2)
 	}
 	res, err := asyncResult.Get(10 * time.Second)
 	if err != nil {
@@ -93,4 +110,5 @@ func (e *EmailUseCase) DoTasks(input models.UserMail, config config.Config, tmpl
 	}
 	fmt.Println(res)
 	log.Printf("result: %+v of type %+v", res, reflect.TypeOf(res))
+	return nil
 }
